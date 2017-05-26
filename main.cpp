@@ -1,13 +1,44 @@
 #include <iostream>
+#include <curses.h>
+#include <stdio.h>
+#include <termios.h>
+#include <fcntl.h>
+#include <time.h>   // for nanosleep
+#include <unistd.h> // for usleep
 using namespace std;
 
 bool gameOver;
-const int width = 20;
+const int width = 40;
 const int height = 20;
 int x,y, fruitsX, fruitsY, score;
 enum eDirection {STOP=0, LEFT, RIGHT, UP, DOWN};
 eDirection dir;
 
+int kbhit(void) {
+  struct termios oldt, newt;
+  int ch;
+  int oldf;
+ 
+  tcgetattr(STDIN_FILENO, &oldt);
+  newt = oldt;
+  newt.c_lflag &= ~(ICANON | ECHO);
+  tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+  oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+  fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+ 
+  ch = getchar();
+ 
+  tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+  fcntl(STDIN_FILENO, F_SETFL, oldf);
+ 
+  if(ch != EOF)
+  {
+    ungetc(ch, stdin);
+    return 1;
+  }
+ 
+  return 0;
+}
 
 void Setup() {
     gameOver = false;
@@ -32,7 +63,14 @@ void Draw() {
         for(int j = 0; j < width; j++) {
             if(j == 0)
                 cout << "#";
-            cout << " ";
+
+            if(i == y && j == x) {
+                cout << "O";
+            } else if(i == fruitsY && j == fruitsX) {
+                cout << "F";
+            } else {
+                cout << " ";
+            }
             if(j == width - 1) {
                 cout << "#";
             }
@@ -46,19 +84,66 @@ void Draw() {
 }
 
 void Input() {
-
+    if(kbhit()) {
+        switch(getchar()) {
+            case 'q':
+                dir = LEFT;
+                break;
+            case 'd':
+                dir = RIGHT;
+                break;
+            case 'z': 
+                dir = UP;
+                break;
+            case 's':
+                dir = DOWN;
+                break;
+            case 'x':
+                gameOver = true;
+                break;
+        }
+    }
 }
 
 void Logic() {
-
+    switch(dir) {
+        case LEFT:
+            x--;
+            break;
+        case RIGHT:
+            x++;
+            break;
+        case UP:
+            y--;
+            break;
+        case DOWN:
+            y++;
+            break;
+        default:
+            break;
+    }
 }
 
-int main() {    
+void sleep_ms(int milliseconds) {
+    #ifdef WIN32
+        Sleep(milliseconds);
+    #elif _POSIX_C_SOURCE >= 199309L
+        struct timespec ts;
+        ts.tv_sec = milliseconds / 1000;
+        ts.tv_nsec = (milliseconds % 1000) * 1000000;
+        nanosleep(&ts, NULL);
+    #else
+        usleep(milliseconds * 1000);
+    #endif
+}
+
+int main() {
     Setup();
     while(!gameOver) {
         Draw();
         Input();
         Logic();
+        sleep_ms(100);
     }
     return 0;
 }
