@@ -44,9 +44,11 @@ int kbhit(void) {
 
 void Setup() {
     gameOver = false;
+    srand(time(NULL));
     dir = STOP;
     x = width / 2;
     y = height / 2;
+    
     fruitsX = rand() % width;
     fruitsY = rand() % height;
     score = 0;
